@@ -2,55 +2,155 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const KEY = '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';
+// ==========================================
+// CONFIGURACIÓN GOOGLE GEMINI (GRATIS)
+// ==========================================
+const GEMINI_KEY = 'AQ.Ab8RN6Ku4OWWGUbqsywctAKrDC7tgIHX3JgtsnUL7ajk29Y0qA';
 
-// Lista de modelos gratis para probar
-const MODELS = [
-  'nousresearch/hermes-3-llama-3.1-405b:free',
-  'google/gemini-flash-1.5',
-  'meta-llama/llama-3.1-8b-instruct:free'
-];
+// ==========================================
+// PROMPT DEL ASISTENTE CHATPRO24
+// ==========================================
+const SYSTEM_PROMPT = `Eres el asistente virtual oficial de ChatPro24, una agencia mexicana de marketing digital y automatización. Eres amable, profesional, entusiasta y persuasivo.
 
-async function tryModel(model, message) {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${KEY}`
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [{ role: 'user', content: message }]
-    })
-  });
-  
-  const data = await response.json();
-  
-  if (data.choices && data.choices[0] && data.choices[0].message) {
-    return { success: true, reply: data.choices[0].message.content, model: model };
-  } else {
-    return { success: false, error: data.error?.message || 'Error desconocido' };
-  }
-}
+INFORMACIÓN OFICIAL DE SERVICIOS:
 
+🤖 CHATBOT IA:
+- Implementación única: $3,000 MXN
+- Plan Básico: $499 MXN/mes → 250 conversaciones/mes
+- Plan Crecimiento: $999 MXN/mes → 500 conversaciones/mes  
+- Plan Avanzado: $1,500 MXN/mes → 1,000 conversaciones/mes
+
+💬 AUTOMATIZACIÓN WHATSAPP:
+- Implementación única: $3,000 MXN
+- Mensualidad: $499 MXN/mes
+
+📱 MANEJO DE REDES SOCIALES:
+- Implementación única: $3,000 MXN
+- Mensualidad: $3,000 MXN/mes
+
+🚀 PAQUETE COMPLETO:
+- Implementación única: $3,000 MXN
+- Mensualidad: $5,000 MXN/mes
+- Incluye: SEO + Redes Sociales + Chatbot IA + WhatsApp
+
+BENEFICIOS:
+- Soporte 24/7
+- Implementación en 48 horas
+- Garantía de satisfacción 30 días
+- Sin contratos forzosos
+
+REGLAS DE RESPUESTA:
+1. Sé cálido y profesional
+2. Usa emojis ocasionalmente 😊
+3. Respuestas cortas (máximo 4 líneas)
+4. SIEMPRE ofrece agendar una llamada gratuita
+5. NUNCA inventes precios o servicios
+6. Si el cliente duda, recomienda el Paquete Completo`;
+
+// ==========================================
+// ALMACENAMIENTO DE CONVERSACIONES
+// ==========================================
+const conversations = {};
+
+// ==========================================
+// ENDPOINT PRINCIPAL DEL WEBHOOK
+// ==========================================
 app.post('/webhook', async (req, res) => {
-  const { message } = req.body;
+  const { message, from } = req.body;
   
-  for (const model of MODELS) {
-    console.log('Probando modelo:', model);
-    const result = await tryModel(model, message);
-    
-    if (result.success) {
-      console.log('✅ Funcionó con:', model);
-      return res.json({ reply: result.reply });
-    } else {
-      console.log('❌ Falló:', model, '-', result.error);
-    }
+  console.log('📩 Mensaje recibido:', message);
+  
+  // Inicializar conversación si es nueva
+  if (!conversations[from]) {
+    conversations[from] = [];
   }
   
-  res.json({ reply: 'Todos los modelos fallaron. Revisa logs.' });
+  try {
+    // Construir mensaje con contexto del sistema
+    const prompt = SYSTEM_PROMPT + "\n\nCliente: " + message + "\n\nAsistente:";
+    
+    // Llamar a Gemini
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 250
+          }
+        })
+      }
+    );
+    
+    const data = await response.json();
+    console.log('📤 Status:', response.status);
+    
+    // Verificar respuesta exitosa
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      const botReply = data.candidates[0].content.parts[0].text;
+      
+      // Guardar en historial
+      conversations[from].push({ 
+        user: message, 
+        bot: botReply 
+      });
+      
+      // Limitar historial
+      if (conversations[from].length > 10) {
+        conversations[from] = conversations[from].slice(-10);
+      }
+      
+      console.log('✅ Respuesta exitosa');
+      res.json({ reply: botReply });
+      
+    } else if (data.error) {
+      console.error('❌ Error Gemini:', data.error.message);
+      res.json({ 
+        reply: "Disculpa 😅, error de API: " + data.error.message 
+      });
+    } else {
+      console.error('❌ Formato inesperado:', JSON.stringify(data));
+      res.json({ 
+        reply: "Disculpa, hubo un error en el formato de respuesta." 
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    res.json({ 
+      reply: "Disculpa 😅, tuve un problema técnico. ¿Podrías intentar de nuevo?" 
+    });
+  }
 });
 
-app.get('/', (req, res) => res.json({ status: 'active' }));
+// ==========================================
+// ENDPOINT DE ESTADO
+// ==========================================
+app.get('/', (req, res) => {
+  res.json({
+    status: 'active',
+    service: 'ChatPro24 + Google Gemini',
+    model: 'Gemini 2.0 Flash',
+    cost: 'GRATIS',
+    limit: '1,500 solicitudes/día',
+    activeConversations: Object.keys(conversations).length
+  });
+});
 
-app.listen(3000, () => console.log('Bot listo - Probando modelos'));
+// ==========================================
+// INICIAR SERVIDOR
+// ==========================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log('🧠 ChatPro24 + Gemini Activado');
+  console.log('🤖 Modelo: Gemini 2.0 Flash (GRATIS)');
+  console.log('✅ Listo para recibir mensajes');
+});
