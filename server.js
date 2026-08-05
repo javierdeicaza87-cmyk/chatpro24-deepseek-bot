@@ -15,7 +15,7 @@ app.post('/webhook', async (req, res) => {
         'Authorization': `Bearer ${KEY}`
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
+        model: 'meta-llama/llama-3.2-3b-instruct:free',
         messages: [
           { role: 'user', content: message }
         ]
@@ -40,6 +40,6 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => res.json({ status: 'active', model: 'Gemini Flash 2.0' }));
+app.get('/', (req, res) => res.json({ status: 'active' }));
 
 app.listen(3000, () => console.log('Bot listo'));
