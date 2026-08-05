@@ -3,10 +3,10 @@ const app = express();
 app.use(express.json());
 
 // ==========================================
-// CONFIGURACIÓN - CAMBIA ESTO
+// CONFIGURACIÓN OPENROUTER (GRATIS)
 // ==========================================
-const DEEPSEEK_API_KEY = 'sk-7c1d9e6f2b8a4f3e5d7c9b1a2f4e6d8c0b3a5f7e9d1c4b6a8f0e2d4c7b9a1f3';
-const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const OPENROUTER_API_KEY = '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';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // ==========================================
 // PROMPT DEL ASISTENTE CHATPRO24
@@ -56,13 +56,7 @@ REGLAS DE RESPUESTA:
 7. Si el cliente está indeciso, recomienda el PAQUETE COMPLETO destacando el ahorro
 8. Para objeciones de precio, menciona la garantía de 30 días y el ROI
 9. Si el cliente quiere contratar, pide: nombre, email y teléfono
-10. Termina cada respuesta con una pregunta sutil para continuar la conversación
-
-EJEMPLO DE RESPUESTA PARA "QUIERO INFORMACIÓN":
-"¡Claro que sí! 😊 En ChatPro24 tenemos 4 servicios principales. Nuestro más vendido es el Paquete Completo por $5,000 MXN/mes que incluye SEO, Redes Sociales, Chatbot IA y WhatsApp. ¿Te gustaría que te cuente más sobre este o prefieres conocer otro servicio?"
-
-EJEMPLO DE RESPUESTA PARA "ESTÁ CARO":
-"¡Te entiendo! Pero mira, el Paquete Completo te ahorra $1,999 MXN/mes vs contratar servicios por separado. Además, ofrecemos garantía de 30 días: si no ves resultados, te devolvemos tu dinero. ¿Te animas a una llamada gratuita de 15 minutos para ver si es para ti?"`;
+10. Termina cada respuesta con una pregunta sutil para continuar la conversación`;
 
 // ==========================================
 // ALMACENAMIENTO DE CONVERSACIONES
@@ -75,32 +69,30 @@ const conversations = {};
 app.post('/webhook', async (req, res) => {
   const { message, from } = req.body;
   
-  console.log('📩 Mensaje recibido de', from, ':', message);
+  console.log('📩 Mensaje recibido:', message);
   
   // Inicializar conversación si es nueva
   if (!conversations[from]) {
     conversations[from] = [
       { role: "system", content: SYSTEM_PROMPT }
     ];
-    console.log('🆕 Nueva conversación para', from);
   }
   
-  // Agregar mensaje del usuario al historial
-  conversations[from].push({ 
-    role: "user", 
-    content: message 
-  });
+  // Agregar mensaje del usuario
+  conversations[from].push({ role: "user", content: message });
   
   try {
-    // Llamar a la API de DeepSeek
-    const response = await fetch(DEEPSEEK_URL, {
+    // Llamar a OpenRouter (modelo GRATIS)
+    const response = await fetch(OPENROUTER_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://chatpro24.com',
+        'X-Title': 'ChatPro24'
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "google/gemini-flash-1.5",
         messages: conversations[from],
         temperature: 0.7,
         max_tokens: 250
@@ -108,58 +100,46 @@ app.post('/webhook', async (req, res) => {
     });
     
     const data = await response.json();
-    console.log('✅ Respuesta DeepSeek recibida');
+    console.log('✅ Respuesta recibida');
     
-    const botReply = data.choices[0].message.content;
-    
-    // Guardar respuesta en historial
-    conversations[from].push({ 
-      role: "assistant", 
-      content: botReply 
-    });
-    
-    // Limpiar historial si es muy largo
-    if (conversations[from].length > 15) {
-      conversations[from] = [
-        conversations[from][0], // Mantener system prompt
-        ...conversations[from].slice(-8) // Últimos 8 mensajes
-      ];
-      console.log('🧹 Historial limpiado para', from);
+    // Verificar y extraer respuesta
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const botReply = data.choices[0].message.content;
+      
+      // Guardar en historial
+      conversations[from].push({ role: "assistant", content: botReply });
+      
+      // Limpiar historial si es muy largo
+      if (conversations[from].length > 15) {
+        conversations[from] = [
+          conversations[from][0],
+          ...conversations[from].slice(-8)
+        ];
+      }
+      
+      res.json({ reply: botReply });
+    } else {
+      console.error('❌ Formato inesperado:', JSON.stringify(data));
+      res.json({ reply: "Disculpa, hubo un error en el formato de respuesta. Intenta de nuevo." });
     }
-    
-    // Enviar respuesta
-    res.json({ reply: botReply });
-    console.log('📤 Respuesta enviada a', from);
     
   } catch (error) {
     console.error('❌ Error:', error.message);
     res.json({ 
-      reply: "Disculpa 😅, tuve un problema técnico. ¿Podrías intentar de nuevo? Si el problema persiste, contáctanos por teléfono al (55) 1234-5678." 
+      reply: "Disculpa 😅, tuve un problema técnico. ¿Podrías intentar de nuevo? Si el problema persiste, contáctanos por teléfono." 
     });
   }
-});
-
-// ==========================================
-// ENDPOINT PARA REINICIAR CONVERSACIÓN
-// ==========================================
-app.post('/reset', (req, res) => {
-  const { from } = req.body;
-  delete conversations[from];
-  console.log('🔄 Conversación reiniciada para', from);
-  res.json({ success: true, message: 'Conversación reiniciada' });
 });
 
 // ==========================================
 // ENDPOINT DE ESTADO
 // ==========================================
 app.get('/', (req, res) => {
-  const activeConversations = Object.keys(conversations).length;
   res.json({
     status: 'active',
-    service: 'ChatPro24 + DeepSeek',
-    version: '1.0.0',
-    activeConversations: activeConversations,
-    uptime: process.uptime()
+    service: 'ChatPro24 + OpenRouter (Gemini Flash)',
+    cost: 'GRATIS',
+    activeConversations: Object.keys(conversations).length
   });
 });
 
@@ -168,8 +148,7 @@ app.get('/', (req, res) => {
 // ==========================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log('🧠 ChatPro24 + DeepSeek Bot Activado');
-  console.log('📍 Puerto:', PORT);
-  console.log('🌐 Webhook:', `http://localhost:${PORT}/webhook`);
+  console.log('🧠 ChatPro24 Bot Activado');
+  console.log('🤖 Modelo: Google Gemini Flash (GRATIS)');
   console.log('✅ Listo para recibir mensajes');
 });
