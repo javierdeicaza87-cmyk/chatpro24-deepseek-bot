@@ -5,7 +5,7 @@ app.use(express.json());
 // ==========================================
 // CONFIGURACIÓN GOOGLE GEMINI (GRATIS)
 // ==========================================
-const GEMINI_KEY = 'AQ.Ab8RN6Ku4OWWGUbqsywctAKrDC7tgIHX3JgtsnUL7ajk29Y0qA';
+const GEMINI_KEY = 'AIzaSyBeiz-Ud5NMMVNmxGLtKalEICYvphNI1LA';
 
 // ==========================================
 // PROMPT DEL ASISTENTE CHATPRO24
@@ -39,53 +39,35 @@ BENEFICIOS:
 - Garantía de satisfacción 30 días
 - Sin contratos forzosos
 
-REGLAS DE RESPUESTA:
+REGLAS:
 1. Sé cálido y profesional
 2. Usa emojis ocasionalmente 😊
 3. Respuestas cortas (máximo 4 líneas)
 4. SIEMPRE ofrece agendar una llamada gratuita
-5. NUNCA inventes precios o servicios
-6. Si el cliente duda, recomienda el Paquete Completo`;
+5. NUNCA inventes precios o servicios`;
 
-// ==========================================
-// ALMACENAMIENTO DE CONVERSACIONES
-// ==========================================
 const conversations = {};
 
-// ==========================================
-// ENDPOINT PRINCIPAL DEL WEBHOOK
-// ==========================================
 app.post('/webhook', async (req, res) => {
   const { message, from } = req.body;
   
-  console.log('📩 Mensaje recibido:', message);
+  console.log('📩 Mensaje:', message);
   
-  // Inicializar conversación si es nueva
   if (!conversations[from]) {
     conversations[from] = [];
   }
   
   try {
-    // Construir mensaje con contexto del sistema
-    const prompt = SYSTEM_PROMPT + "\n\nCliente: " + message + "\n\nAsistente:";
+    const prompt = SYSTEM_PROMPT + '\n\nCliente: ' + message + '\n\nAsistente:';
     
-    // Llamar a Gemini
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: prompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 250
-          }
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 250 }
         })
       }
     );
@@ -93,64 +75,32 @@ app.post('/webhook', async (req, res) => {
     const data = await response.json();
     console.log('📤 Status:', response.status);
     
-    // Verificar respuesta exitosa
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       const botReply = data.candidates[0].content.parts[0].text;
-      
-      // Guardar en historial
-      conversations[from].push({ 
-        user: message, 
-        bot: botReply 
-      });
-      
-      // Limitar historial
-      if (conversations[from].length > 10) {
-        conversations[from] = conversations[from].slice(-10);
-      }
-      
-      console.log('✅ Respuesta exitosa');
+      conversations[from].push({ user: message, bot: botReply });
+      if (conversations[from].length > 10) conversations[from] = conversations[from].slice(-10);
+      console.log('✅ Éxito');
       res.json({ reply: botReply });
-      
     } else if (data.error) {
-      console.error('❌ Error Gemini:', data.error.message);
-      res.json({ 
-        reply: "Disculpa 😅, error de API: " + data.error.message 
-      });
+      console.error('❌ Error:', data.error.message);
+      res.json({ reply: 'Error: ' + data.error.message });
     } else {
-      console.error('❌ Formato inesperado:', JSON.stringify(data));
-      res.json({ 
-        reply: "Disculpa, hubo un error en el formato de respuesta." 
-      });
+      console.error('❌ Formato:', JSON.stringify(data).substring(0, 200));
+      res.json({ reply: 'Error de formato' });
     }
     
   } catch (error) {
     console.error('❌ Error:', error.message);
-    res.json({ 
-      reply: "Disculpa 😅, tuve un problema técnico. ¿Podrías intentar de nuevo?" 
-    });
+    res.json({ reply: 'Error técnico 😅' });
   }
 });
 
-// ==========================================
-// ENDPOINT DE ESTADO
-// ==========================================
 app.get('/', (req, res) => {
   res.json({
     status: 'active',
-    service: 'ChatPro24 + Google Gemini',
-    model: 'Gemini 2.0 Flash',
-    cost: 'GRATIS',
-    limit: '1,500 solicitudes/día',
-    activeConversations: Object.keys(conversations).length
+    service: 'ChatPro24 + Gemini',
+    cost: 'GRATIS'
   });
 });
 
-// ==========================================
-// INICIAR SERVIDOR
-// ==========================================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log('🧠 ChatPro24 + Gemini Activado');
-  console.log('🤖 Modelo: Gemini 2.0 Flash (GRATIS)');
-  console.log('✅ Listo para recibir mensajes');
-});
+app.listen(3000, () => console.log('🧠 ChatPro24 + Gemini listo'));
