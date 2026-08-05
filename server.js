@@ -3,7 +3,7 @@ const app = express();
 app.use(express.json());
 
 // ==========================================
-// CONFIGURACIÓN OPENROUTER (GRATIS)
+// CONFIGURACIÓN OPENROUTER
 // ==========================================
 const OPENROUTER_API_KEY = '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';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -82,7 +82,9 @@ app.post('/webhook', async (req, res) => {
   conversations[from].push({ role: "user", content: message });
   
   try {
-    // Llamar a OpenRouter (modelo GRATIS)
+    console.log('🔄 Llamando a OpenRouter...');
+    
+    // Llamar a OpenRouter (Gemini Flash - GRATIS)
     const response = await fetch(OPENROUTER_URL, {
       method: 'POST',
       headers: {
@@ -92,7 +94,7 @@ app.post('/webhook', async (req, res) => {
         'X-Title': 'ChatPro24'
       },
       body: JSON.stringify({
-        model: "google/gemini-flash-1.5",
+        model: "google/gemini-2.0-flash-001",
         messages: conversations[from],
         temperature: 0.7,
         max_tokens: 250
@@ -100,9 +102,15 @@ app.post('/webhook', async (req, res) => {
     });
     
     const data = await response.json();
-    console.log('✅ Respuesta recibida');
+    console.log('📤 Status:', response.status);
     
-    // Verificar y extraer respuesta
+    // Verificar error de OpenRouter
+    if (data.error) {
+      console.error('❌ Error OpenRouter:', data.error.message);
+      throw new Error(data.error.message);
+    }
+    
+    // Verificar respuesta válida
     if (data.choices && data.choices[0] && data.choices[0].message) {
       const botReply = data.choices[0].message.content;
       
@@ -117,9 +125,11 @@ app.post('/webhook', async (req, res) => {
         ];
       }
       
+      console.log('✅ Respuesta enviada');
       res.json({ reply: botReply });
+      
     } else {
-      console.error('❌ Formato inesperado:', JSON.stringify(data));
+      console.error('❌ Formato inesperado:', JSON.stringify(data).substring(0, 200));
       res.json({ reply: "Disculpa, hubo un error en el formato de respuesta. Intenta de nuevo." });
     }
     
@@ -137,7 +147,8 @@ app.post('/webhook', async (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     status: 'active',
-    service: 'ChatPro24 + OpenRouter (Gemini Flash)',
+    service: 'ChatPro24 + OpenRouter',
+    model: 'Gemini Flash 2.0',
     cost: 'GRATIS',
     activeConversations: Object.keys(conversations).length
   });
@@ -149,6 +160,6 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('🧠 ChatPro24 Bot Activado');
-  console.log('🤖 Modelo: Google Gemini Flash (GRATIS)');
+  console.log('🤖 Modelo: Gemini Flash 2.0 (GRATIS)');
   console.log('✅ Listo para recibir mensajes');
 });
