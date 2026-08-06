@@ -3,163 +3,143 @@ const app = express();
 app.use(express.json());
 
 // ==========================================
-// CONFIGURACIÓN DEEPSEEK
+// CONFIGURACIÓN
 // ==========================================
 const DEEPSEEK_API_KEY = 'sk-0c6cf027d6064a3eac7b88843e224340';
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+const VERIFY_TOKEN = 'chatpro24_token_2024';
+const WHATSAPP_TOKEN = 'EL_TOKEN_DE_META_QUE_COPIASTE';
 
 // ==========================================
-// PROMPT OFICIAL CHATPRO24
+// PROMPT CHATPRO24
 // ==========================================
-const SYSTEM_PROMPT = `Eres el asistente virtual oficial de ChatPro24, una agencia de marketing digital mexicana. Eres experto, profesional, amable y persuasivo.
+const SYSTEM_PROMPT = `Eres el asistente virtual oficial de ChatPro24, una agencia de marketing digital mexicana. Eres amable, profesional y persuasivo.
 
-═══════════════════════════════════════
-SERVICIOS DE CHATPRO24
-═══════════════════════════════════════
+INFORMACIÓN OFICIAL DE SERVICIOS:
 
 🤖 CHATBOT IA:
-Implementación única: $3,000 MXN
-Plan Básico: $499 MXN/mes → 250 conversaciones/mes
-Plan Crecimiento: $999 MXN/mes → 500 conversaciones/mes  
-Plan Avanzado: $1,500 MXN/mes → 1,000 conversaciones/mes
-
-Incluye: IA conversacional, integración WhatsApp, panel de control, respuestas automáticas 24/7, personalidad de marca personalizada, soporte técnico.
+- Implementación única: $3,000 MXN
+- Plan Básico: $499 MXN/mes → 250 conversaciones/mes
+- Plan Crecimiento: $999 MXN/mes → 500 conversaciones/mes  
+- Plan Avanzado: $1,500 MXN/mes → 1,000 conversaciones/mes
 
 💬 AUTOMATIZACIÓN WHATSAPP:
-Implementación única: $3,000 MXN
-Mensualidad: $499 MXN/mes
-
-Incluye: Configuración WhatsApp Business API, respuestas automáticas, mensajes masivos, catálogo de productos, programación de mensajes, etiquetas, segmentación, reportes.
+- Implementación única: $3,000 MXN
+- Mensualidad: $499 MXN/mes
 
 📱 MANEJO DE REDES SOCIALES:
-Implementación única: $3,000 MXN
-Mensualidad: $3,000 MXN/mes
-
-Incluye: Creación de contenido original, publicaciones diarias, diseño de parrilla mensual, community management, diseño de gráficos y videos, reels y stories, estrategia de hashtags, reportes de crecimiento, Facebook, Instagram y TikTok.
+- Implementación única: $3,000 MXN
+- Mensualidad: $3,000 MXN/mes
 
 🚀 PAQUETE COMPLETO:
-Implementación única: $3,000 MXN
-Mensualidad: $5,000 MXN/mes
+- Implementación única: $3,000 MXN
+- Mensualidad: $5,000 MXN/mes
+- Incluye: SEO + Redes Sociales + Chatbot IA + WhatsApp + Diseño Web + SEM + Branding
 
-Incluye TODO:
-✅ Chatbot IA (Plan Básico)
-✅ Automatización WhatsApp
-✅ Manejo de Redes Sociales
-✅ SEO completo (On-page, Off-page, Técnico, Google My Business, keywords, auditoría, link building, reportes)
-✅ SEM / Google Ads (Search, Display, Shopping, Remarketing, Facebook Ads, optimización, reportes ROI)
-✅ Diseño Web profesional (sitios web, landing pages, e-commerce, WordPress, Shopify, rediseño)
-✅ Diseño Gráfico y Branding (logos, identidad corporativa, paleta de colores, papelería, manual de marca)
-
-BENEFICIOS CHATPRO24:
-- Empresa 100% mexicana
-- Más de 5 años de experiencia
+BENEFICIOS:
 - Soporte 24/7
-- Implementación rápida (48-72 horas)
-- Sin contratos forzosos (cancela cuando quieras)
-- Asesoría personalizada GRATUITA
-- Reportes mensuales detallados
+- Implementación en 48-72 horas
+- Sin contratos forzosos
+- Asesoría personalizada gratuita
+- Empresa 100% mexicana
 
-REGLAS DE RESPUESTA:
-1. Saludo cálido y profesional
-2. Identifica qué servicio necesita el cliente
-3. Da información DETALLADA del servicio que pregunta
-4. Máximo 5 líneas por mensaje
-5. Usa emojis apropiados 😊 🚀 📱
-6. SIEMPRE ofrece agendar llamada de asesoría GRATUITA
-7. NUNCA inventes precios, servicios, descuentos o garantías
-8. Si el cliente está indeciso, recomienda PAQUETE COMPLETO
-9. Para contratar, pide: nombre, email y teléfono
-10. Ante objeciones, destaca el valor de cada servicio
-11. Termina con una pregunta sutil para seguir conversación
-12. NO menciones garantía de 30 días ni devoluciones`;
+REGLAS:
+1. Respuestas cortas y cálidas con emojis 😊
+2. SIEMPRE ofrece agendar una llamada gratuita
+3. NUNCA inventes precios, servicios o garantías
+4. Si el cliente duda, recomienda el Paquete Completo
+5. Termina cada respuesta con una pregunta sutil`;
 
-// ==========================================
-// CATÁLOGO DE IMÁGENES DE SERVICIOS
-// ==========================================
-const CATALOGO_IMAGENES = {
-  chatbot: 'https://i.imgur.com/CHATBOT_IA.jpg',
-  whatsapp: 'https://i.imgur.com/WHATSAPP_AUTO.jpg',
-  redes: 'https://i.imgur.com/REDES_SOCIALES.jpg',
-  paquete: 'https://i.imgur.com/PAQUETE_COMPLETO.jpg',
-  logo: 'https://i.imgur.com/LOGO_CHATPRO24.jpg'
-};
-
-// ==========================================
-// ALMACENAMIENTO DE CONVERSACIONES
-// ==========================================
 const conversations = {};
 
 // ==========================================
-// ENDPOINT PRINCIPAL
+// VERIFICACIÓN DE META (GET)
+// ==========================================
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  console.log('🔑 Verificación Meta - mode:', mode, 'token:', token);
+  
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('✅ Webhook verificado por Meta');
+    res.status(200).send(challenge);
+  } else {
+    console.log('❌ Token incorrecto');
+    res.sendStatus(403);
+  }
+});
+
+// ==========================================
+// RECIBIR MENSAJES (POST) - WHATSAPP
 // ==========================================
 app.post('/webhook', async (req, res) => {
-  const { message, from } = req.body;
-  
-  console.log('📩 Mensaje:', message);
-  
-  if (!conversations[from]) {
-    conversations[from] = [{ role: 'system', content: SYSTEM_PROMPT }];
-  }
-  
-  conversations[from].push({ role: 'user', content: message });
+  // Responder a Meta inmediatamente
+  res.sendStatus(200);
   
   try {
-    const response = await fetch(DEEPSEEK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: conversations[from],
-        temperature: 0.7,
-        max_tokens: 400
-      })
-    });
+    const entry = req.body.entry?.[0];
+    const change = entry?.changes?.[0];
+    const value = change?.value;
     
-    const data = await response.json();
-    
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const botReply = data.choices[0].message.content;
-      conversations[from].push({ role: 'assistant', content: botReply });
+    if (value?.messages) {
+      const msg = value.messages[0];
+      const from = msg.from;
+      const text = msg.text?.body || '';
       
-      // Limpiar historial si es muy largo
+      console.log('📩 WhatsApp de', from, ':', text);
+      
+      // Inicializar conversación
+      if (!conversations[from]) {
+        conversations[from] = [{ role: 'system', content: SYSTEM_PROMPT }];
+      }
+      conversations[from].push({ role: 'user', content: text });
+      
+      // Llamar a DeepSeek
+      const response = await fetch(DEEPSEEK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: conversations[from],
+          temperature: 0.7,
+          max_tokens: 400
+        })
+      });
+      
+      const data = await response.json();
+      const reply = data.choices[0].message.content;
+      
+      conversations[from].push({ role: 'assistant', content: reply });
+      
+      // Limpiar historial
       if (conversations[from].length > 15) {
         conversations[from] = [conversations[from][0], ...conversations[from].slice(-8)];
       }
       
-      console.log('✅ Éxito');
-      
-      // Detectar si el cliente pide ver planes/servicios para enviar imagen
-      const lowerMsg = message.toLowerCase();
-      let imagen = null;
-      
-      if (lowerMsg.includes('chatbot') || lowerMsg.includes('ia') || lowerMsg.includes('bot')) {
-        imagen = CATALOGO_IMAGENES.chatbot;
-      } else if (lowerMsg.includes('whatsapp') || lowerMsg.includes('whats')) {
-        imagen = CATALOGO_IMAGENES.whatsapp;
-      } else if (lowerMsg.includes('redes') || lowerMsg.includes('social') || lowerMsg.includes('facebook') || lowerMsg.includes('instagram')) {
-        imagen = CATALOGO_IMAGENES.redes;
-      } else if (lowerMsg.includes('paquete') || lowerMsg.includes('completo') || lowerMsg.includes('todo')) {
-        imagen = CATALOGO_IMAGENES.paquete;
-      } else if (lowerMsg.includes('precio') || lowerMsg.includes('plan') || lowerMsg.includes('servicio') || lowerMsg.includes('costo')) {
-        imagen = CATALOGO_IMAGENES.paquete;
-      }
-      
-      res.json({ 
-        reply: botReply,
-        image: imagen
+      // Enviar respuesta a WhatsApp
+      const phoneId = value.metadata.phone_number_id;
+      await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${WHATSAPP_TOKEN}`
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: from,
+          text: { body: reply }
+        })
       });
       
-    } else {
-      console.error('❌ Error:', JSON.stringify(data).substring(0, 200));
-      res.json({ reply: 'Error en formato de respuesta' });
+      console.log('✅ Respuesta enviada a WhatsApp');
     }
-    
   } catch (error) {
     console.error('❌ Error:', error.message);
-    res.json({ reply: 'Disculpa 😅, tuve un problema técnico. ¿Podrías intentar de nuevo?' });
   }
 });
 
@@ -169,14 +149,13 @@ app.post('/webhook', async (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     status: 'active',
-    service: 'ChatPro24 - Agencia Digital',
+    service: 'ChatPro24 + Meta WhatsApp API',
     ai: 'DeepSeek',
     activeConversations: Object.keys(conversations).length
   });
 });
 
 // ==========================================
-// INICIAR SERVIDOR
+// INICIAR
 // ==========================================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('🧠 ChatPro24 + DeepSeek Activado'));
+app.listen(3000, () => console.log('📱 ChatPro24 + Meta API listo'));
