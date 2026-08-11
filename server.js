@@ -7,139 +7,137 @@ app.use(express.json());
 // ==========================================
 const DEEPSEEK_API_KEY = 'sk-0c6cf027d6064a3eac7b88843e224340';
 const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
-const VERIFY_TOKEN = 'chatpro24_token_2024';
-const WHATSAPP_TOKEN = 'EL_TOKEN_DE_META_QUE_COPIASTE';
 
 // ==========================================
-// PROMPT CHATPRO24
+// PROMPT KARTÓDROMO SAN LUIS
 // ==========================================
-const SYSTEM_PROMPT = `Eres el asistente virtual oficial de ChatPro24, una agencia de marketing digital mexicana. Eres amable, profesional y persuasivo.
+const SYSTEM_PROMPT = `Eres el asistente virtual oficial del Kartódromo San Luis, el mejor lugar de velocidad en San Luis Potosí. Eres amable, entusiasta, divertido y usas lenguaje de carreras.
 
-INFORMACIÓN OFICIAL DE SERVICIOS:
+🏁 INFORMACIÓN GENERAL:
+📍 Dirección: Av. Anillo Perif. Nte. 2040, Las Flores, 78364 San Luis Potosí, S.L.P.
+📞 Teléfono: 444 259 6786
+🌐 Web: https://www.kartodromosanluis.mx
+👤 Edad mínima: 18 años
 
-🤖 CHATBOT IA:
-- Implementación única: $3,000 MXN
-- Plan Básico: $499 MXN/mes → 250 conversaciones/mes
-- Plan Crecimiento: $999 MXN/mes → 500 conversaciones/mes  
-- Plan Avanzado: $1,500 MXN/mes → 1,000 conversaciones/mes
+⏰ HORARIOS:
+Lunes a Viernes: 10:00 a.m. - 8:30 p.m.
+Sábado: 10:30 a.m. - 8:30 p.m.
+Domingo: 10:00 a.m. - 8:30 p.m.
+Abierto TODOS los días
 
-💬 AUTOMATIZACIÓN WHATSAPP:
-- Implementación única: $3,000 MXN
-- Mensualidad: $499 MXN/mes
+═══════════════════════════════════════
+🏎️ PRECIOS POR DÍA
+═══════════════════════════════════════
 
-📱 MANEJO DE REDES SOCIALES:
-- Implementación única: $3,000 MXN
-- Mensualidad: $3,000 MXN/mes
+🟡 LUNES — Mónaco Day:
+Modalidad Sencilla: $199 MXN (Todo el día)
 
-🚀 PAQUETE COMPLETO:
-- Implementación única: $3,000 MXN
-- Mensualidad: $5,000 MXN/mes
-- Incluye: SEO + Redes Sociales + Chatbot IA + WhatsApp + Diseño Web + SEM + Branding
+🟡 MARTES — Karto Tuesdays:
+Modalidad Sencilla: $219 MXN
+Modalidad Carrera: $349 MXN
 
-BENEFICIOS:
-- Soporte 24/7
-- Implementación en 48-72 horas
-- Sin contratos forzosos
-- Asesoría personalizada gratuita
-- Empresa 100% mexicana
+🟡 MIÉRCOLES — Suzuka Day:
+Modalidad Sencilla: $249 MXN
+Modalidad Carrera: $349 MXN
 
-REGLAS:
-1. Respuestas cortas y cálidas con emojis 😊
-2. SIEMPRE ofrece agendar una llamada gratuita
-3. NUNCA inventes precios, servicios o garantías
-4. Si el cliente duda, recomienda el Paquete Completo
-5. Termina cada respuesta con una pregunta sutil`;
+🟡 JUEVES — Cheko Day:
+Modalidad Sencilla: $249 MXN
+Modalidad Carrera: $409 MXN
 
+🟡 VIERNES — F1 Fridays:
+Modalidad Sencilla: $299 MXN
+Modalidad Carrera: $409 MXN
+
+🟡 SÁBADOS Y DOMINGOS:
+Modalidad Sencilla: $389 MXN (Todo el día)
+
+═══════════════════════════════════════
+🎂 CUMPLEAÑOS
+═══════════════════════════════════════
+
+Precio base: Desde $7,500 MXN
+Mínimo: 10 personas
+
+Incluye:
+✅ Acceso a pista (Sprint + Carrera)
+✅ Paquete de alimentos
+✅ Refresco de refill ilimitado
+
+Precio por persona:
+- Lunes a Jueves: $750 MXN
+- Viernes: $800 MXN
+- Sábado a Domingo: $850 MXN
+
+⚠️ Aplican restricciones
+
+═══════════════════════════════════════
+REGLAS DE RESPUESTA
+═══════════════════════════════════════
+
+1. Saluda: "¡Hola piloto! 🏎️"
+2. Usa emojis: 🏎️ 🏁 🏆 🎂 🚦 ⚡
+3. SIEMPRE menciona precios según el día
+4. Lunes = Mónaco Day $199
+5. Para reservar: día, personas, modalidad
+6. Cumpleaños: Personas × Precio según día
+7. Máximo 5 líneas
+8. NUNCA inventes precios
+9. Termina con pregunta`;
+
+// ==========================================
+// ALMACENAMIENTO DE CONVERSACIONES
+// ==========================================
 const conversations = {};
 
 // ==========================================
-// VERIFICACIÓN DE META (GET)
-// ==========================================
-app.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-  
-  console.log('🔑 Verificación Meta - mode:', mode, 'token:', token);
-  
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ Webhook verificado por Meta');
-    res.status(200).send(challenge);
-  } else {
-    console.log('❌ Token incorrecto');
-    res.sendStatus(403);
-  }
-});
-
-// ==========================================
-// RECIBIR MENSAJES (POST) - WHATSAPP
+// ENDPOINT WEBHOOK
 // ==========================================
 app.post('/webhook', async (req, res) => {
-  // Responder a Meta inmediatamente
-  res.sendStatus(200);
+  const { message, from } = req.body;
+  
+  console.log('📩 Mensaje:', message);
+  
+  if (!conversations[from]) {
+    conversations[from] = [{ role: 'system', content: SYSTEM_PROMPT }];
+  }
+  
+  conversations[from].push({ role: 'user', content: message });
   
   try {
-    const entry = req.body.entry?.[0];
-    const change = entry?.changes?.[0];
-    const value = change?.value;
+    const response = await fetch(DEEPSEEK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: conversations[from],
+        temperature: 0.7,
+        max_tokens: 400
+      })
+    });
     
-    if (value?.messages) {
-      const msg = value.messages[0];
-      const from = msg.from;
-      const text = msg.text?.body || '';
+    const data = await response.json();
+    
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const botReply = data.choices[0].message.content;
+      conversations[from].push({ role: 'assistant', content: botReply });
       
-      console.log('📩 WhatsApp de', from, ':', text);
-      
-      // Inicializar conversación
-      if (!conversations[from]) {
-        conversations[from] = [{ role: 'system', content: SYSTEM_PROMPT }];
-      }
-      conversations[from].push({ role: 'user', content: text });
-      
-      // Llamar a DeepSeek
-      const response = await fetch(DEEPSEEK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: conversations[from],
-          temperature: 0.7,
-          max_tokens: 400
-        })
-      });
-      
-      const data = await response.json();
-      const reply = data.choices[0].message.content;
-      
-      conversations[from].push({ role: 'assistant', content: reply });
-      
-      // Limpiar historial
       if (conversations[from].length > 15) {
         conversations[from] = [conversations[from][0], ...conversations[from].slice(-8)];
       }
       
-      // Enviar respuesta a WhatsApp
-      const phoneId = value.metadata.phone_number_id;
-      await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${WHATSAPP_TOKEN}`
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: from,
-          text: { body: reply }
-        })
-      });
-      
-      console.log('✅ Respuesta enviada a WhatsApp');
+      console.log('✅ Éxito');
+      res.json({ reply: botReply });
+    } else {
+      console.error('❌ Error:', JSON.stringify(data).substring(0, 200));
+      res.json({ reply: 'Error en formato de respuesta' });
     }
+    
   } catch (error) {
     console.error('❌ Error:', error.message);
+    res.json({ reply: 'Disculpa, tuve un problema técnico. ¿Podrías intentar de nuevo?' });
   }
 });
 
@@ -149,13 +147,12 @@ app.post('/webhook', async (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     status: 'active',
-    service: 'ChatPro24 + Meta WhatsApp API',
-    ai: 'DeepSeek',
-    activeConversations: Object.keys(conversations).length
+    servicio: 'Kartódromo San Luis',
+    direccion: 'Av. Anillo Perif. Nte. 2040, Las Flores',
+    telefono: '444 259 6786',
+    web: 'https://www.kartodromosanluis.mx',
+    ai: 'DeepSeek'
   });
 });
 
-// ==========================================
-// INICIAR
-// ==========================================
-app.listen(3000, () => console.log('📱 ChatPro24 + Meta API listo'));
+app.listen(3000, () => console.log('🏎️ Kartódromo San Luis listo'));
