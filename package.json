@@ -1,25 +1,128 @@
-{
-  "name": "chatpro24-deepseek-bot",
-  "version": "1.0.0",
-  "description": "ChatPro24 WhatsApp Bot con Inteligencia Artificial DeepSeek",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
-  "keywords": [
-    "chatpro24",
-    "whatsapp",
-    "bot",
-    "deepseek",
-    "chatbot"
-  ],
-  "author": "ChatPro24",
-  "license": "ISC",
-  "dependencies": {
-    "express": "^4.18.2"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+const express = require('express');
+const app = express();
+app.use(express.json());
+
+// ==========================================
+// CONFIGURACIÓN
+// ==========================================
+const DEEPSEEK_API_KEY = 'sk-28b826580b6d40cbbb3e0426a17db33d';
+const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+
+// ==========================================
+// PROMPT CHATPRO24
+// ==========================================
+const SYSTEM_PROMPT = `Eres el asistente virtual oficial de ChatPro24, una agencia de marketing digital mexicana. Eres amable, profesional, entusiasta y persuasivo.
+
+INFORMACIÓN OFICIAL DE SERVICIOS:
+
+🤖 CHATBOT IA:
+- Implementación única: $3,000 MXN
+- Plan Básico: $499 MXN/mes → 250 conversaciones/mes
+- Plan Crecimiento: $999 MXN/mes → 500 conversaciones/mes
+- Plan Avanzado: $1,500 MXN/mes → 1,000 conversaciones/mes
+- Incluye: IA conversacional, integración WhatsApp, panel de control, respuestas automáticas 24/7
+
+💬 AUTOMATIZACIÓN WHATSAPP:
+- Implementación única: $3,000 MXN
+- Mensualidad: $499 MXN/mes
+- Incluye: Configuración WhatsApp Business API, respuestas automáticas, mensajes masivos, catálogo, reportes
+
+📱 MANEJO DE REDES SOCIALES:
+- Implementación única: $3,000 MXN
+- Mensualidad: $3,000 MXN/mes
+- Incluye: Creación de contenido, publicaciones diarias, community management, diseño de gráficos, reels, reportes de crecimiento
+
+🚀 PAQUETE COMPLETO:
+- Implementación única: $3,000 MXN
+- Mensualidad: $5,000 MXN/mes
+- Incluye TODO: Chatbot IA + WhatsApp + Redes Sociales + SEO + SEM + Diseño Web + Branding
+
+BENEFICIOS:
+- Empresa 100% mexicana
+- Soporte 24/7
+- Implementación en 48-72 horas
+- Sin contratos forzosos
+- Asesoría personalizada gratuita
+- Reportes mensuales
+
+REGLAS DE RESPUESTA:
+1. Saludo cálido y profesional
+2. Identifica qué servicio necesita el cliente
+3. Da información DETALLADA del servicio preguntado
+4. Máximo 5 líneas por mensaje
+5. Usa emojis apropiados 😊 🚀 📱
+6. SIEMPRE ofrece agendar llamada de asesoría GRATUITA
+7. NUNCA inventes precios, servicios, descuentos o garantías
+8. Si el cliente está indeciso, recomienda PAQUETE COMPLETO
+9. Para contratar, pide: nombre, email y teléfono
+10. Termina con una pregunta sutil`;
+
+// ==========================================
+// ALMACENAMIENTO DE CONVERSACIONES
+// ==========================================
+const conversations = {};
+
+// ==========================================
+// ENDPOINT WEBHOOK
+// ==========================================
+app.post('/webhook', async (req, res) => {
+  const { message, from } = req.body;
+  
+  console.log('📩 Mensaje:', message);
+  
+  if (!conversations[from]) {
+    conversations[from] = [{ role: 'system', content: SYSTEM_PROMPT }];
   }
-}
+  
+  conversations[from].push({ role: 'user', content: message });
+  
+  try {
+    const response = await fetch(DEEPSEEK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: conversations[from],
+        temperature: 0.7,
+        max_tokens: 300
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const botReply = data.choices[0].message.content;
+      conversations[from].push({ role: 'assistant', content: botReply });
+      
+      if (conversations[from].length > 10) {
+        conversations[from] = [conversations[from][0], ...conversations[from].slice(-5)];
+      }
+      
+      console.log('✅ Éxito');
+      res.json({ reply: botReply });
+    } else {
+      console.error('❌ Error:', JSON.stringify(data).substring(0, 200));
+      res.json({ reply: 'Error en formato de respuesta' });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    res.json({ reply: 'Disculpa 😅, tuve un problema técnico. ¿Podrías intentar de nuevo?' });
+  }
+});
+
+// ==========================================
+// ENDPOINT DE ESTADO
+// ==========================================
+app.get('/', (req, res) => {
+  res.json({
+    status: 'active',
+    servicio: 'ChatPro24 - Agencia Digital',
+    ai: 'DeepSeek'
+  });
+});
+
+app.listen(3000, () => console.log('🚀 ChatPro24 listo'));
